@@ -235,15 +235,85 @@ assign_ind_top_players(seasons)
 ### Cleaning Event Data
 
 ```{r}
+# finding player ID's
+player_ids_25 <- nba_pbp2025 %>%
+  filter(str_detect(text, paste(players24_25Ind, collapse = "|"))) %>%
+  select(text, athlete_id_1) %>%
+  distinct()
+
+ids24_25 <- unique(player_ids_25$athlete_id_1)
+
+```
+
+```{r}
+id_lookup_24_25 <- nba_pbp2025 %>%
+  filter(
+    shooting_play == TRUE,
+    str_detect(text, paste(players24_25Ind, collapse = "|"))
+  ) %>%
+  mutate(
+    player = str_extract(text, paste(players24_25Ind, collapse = "|"))
+  ) %>%
+  select(player, athlete_id_1) %>%
+  distinct() %>%
+  arrange(player)
+
+```
+
+```{r}
+ids24_25 <- c(4594268,3975,3907822,4065648,3078576,4395725,
+              3992,4437244,4277905,3908809,4066354,4277956,
+              4351851,4395651,4396993,6475,3136193,2990984,
+              3064440,4066457,4396907,4432816,6606,4433627,
+              4278104,3157465,3945274,4592479,4431678,4914336)
+
+```
+
+```{r}
 #season 2024-25
-nba_pbp2025 <- hoopR::load_nba_pbp(season = 2025)
+nba_pbp2025 <- hoopR::load_nba_pbp(season = 2025) |>
+  filter(grepl("Anthony Edwards", text, ignore.case = TRUE)) |>
+  mutate(distance = as.numeric(str_extract(text, "\\d+(?=-foot)"))) |>
+  filter(score_value != 2) |>
+  filter(is.na(distance)) |>
+  filter(!grepl("rebound", type_text, ignore.case = TRUE),
+         !grepl("turnover", type_text, ignore.case = TRUE),
+         !grepl("layup", type_text, ignore.case = TRUE),
+         !grepl("foul", type_text, ignore.case = TRUE),
+         !grepl("free throw", type_text, ignore.case = TRUE),
+         !grepl("substitution", type_text, ignore.case = TRUE),
+         !grepl("jumpball", type_text, ignore.case = TRUE),
+         !grepl("tip", type_text, ignore.case = TRUE),
+         !grepl("kicked", type_text, ignore.case = TRUE),
+         !grepl("jumpball", type_text, ignore.case = TRUE),
+         !grepl("charge", type_text, ignore.case = TRUE),
+         !grepl("goaltending", type_text, ignore.case = TRUE),
+         !grepl("dunk", type_text, ignore.case = TRUE),
+         !grepl("ejection", type_text, ignore.case = TRUE),
+         !grepl("lane", type_text, ignore.case = TRUE),
+         !grepl("traveling", type_text, ignore.case = TRUE),
+         !grepl("hook", type_text, ignore.case = TRUE),
+         !grepl("two point", text, ignore.case = TRUE),
+         )
+
+nba_pbp2025 <- hoopR::load_nba_pbp(season = 2025) 
+
 nba_pbp2025 <- nba_pbp2025 |>
-  mutate(text = gsub("\\s*\\(.*", "", text)) |>  # remove everything from '(' onward
-  filter(grepl("three point", text, ignore.case = TRUE)) |>
-  filter(grepl(paste(players24_25Ind, collapse = "|"), text, ignore.case = TRUE)) |>
+  filter(athlete_id_1 %in% ids24_25) |>
+  mutate(distance = as.numeric(str_extract(text, "\\d+(?=-foot)"))) |>
+  #mutate(text = gsub("\\s*\\(.*", "", text)) |>   #remove everything from '(' onward
+  filter(grepl("three point", text, ignore.case = TRUE) | 
+        (grepl("running pullup", text, ignore.case = TRUE) & distance >= 22) |
+        (grepl("driving floating", text, ignore.case = TRUE) & distance >= 22) |
+         distance >= 22 |
+         score_value == 3
+         )|>
+  #filter(grepl(paste(players24_25Ind, collapse = "|"), text, ignore.case = TRUE)) |>
   filter(season_type == 2) |>
   select(-away_score, -home_score, -period_display_value, -score_value, -wallclock, -coordinate_x_raw, -coordinate_y_raw, -game_spread, -home_favorite, -game_spread_available, -home_team_spread, -home_timeout_called, -away_timeout_called, -half, -game_half, -lead_qtr, -lead_half, -start_quarter_seconds_remaining, -start_half_seconds_remaining, -start_game_seconds_remaining)
 ```
+
+
 
 Removing rows where the shooter is blocking someone else
 
@@ -287,6 +357,8 @@ Anthony Edwards 2024-25 shots vector:
 # Create a vector of 1s and 0s from the scoring_play column
 `AnthonyEdwards_shots_24-25` <- ifelse(AnthonyEdwards2025$scoring_play, 1, 0)
 `StephenCurry_shots_24-25` <- ifelse(StephenCurry2025$scoring_play, 1, 0)
+`ShaedonSharpe_shots_24-25` <- ifelse(ShaedonSharpe2025$scoring_play, 1, 0)
+
 ```
 
 ## Plots
@@ -783,7 +855,7 @@ season_level_results <- season_level_results %>%
           shot_vec = shot_vec,
           observed_phat = phat_after_Sstreak,
           streak_length = 3,
-          n_sims = 5000
+          n_sims = 1000
         )
       }
     }
@@ -1101,4 +1173,4 @@ ggplot(opportunity_df_all, aes(x = season, y = opportunities)) +
   )
 ```
 
-
+* Look at player's last attempts of game and first attempts of game to see if the percentages are similar.  
